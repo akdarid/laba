@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "python_labs_Liza"
+version = "1.00.2025"
+dependencies = []
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+    "black>=24.0.0",
+]
+
+[tool.black]
+skip-string-normalization = true
+line-length = 88
+target-version = ['py38']
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "ex_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = "-v --cov=src --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["laba_prog"]
+omit = [
+    "*/test_*",
+    "*/__pycache__/*",
+    "*/lib/__init__.py*",
+    "*/lib/json_csv.py*",
+    "*/tests/__init__.py*",
+    "*/src/lib.py*",
+     "*/src/__init__.py*" 
+]
