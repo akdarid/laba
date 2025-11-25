@@ -304,3 +304,6 @@ def test_csv_to_json_wrong_extension(tmp_path):
     with pytest.raises(ValueError, match="не является CSV файлом"):
         csv_to_json(str(src), str(dst))
 ```
+
+![img.png](img.png)
+тесты

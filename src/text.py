@@ -71,7 +71,12 @@ def top_n(
         int,
     ],
     n: int,
-) -> list[tuple[str, int,]]:
+) -> list[
+    tuple[
+        str,
+        int,
+    ]
+]:
     return sorted(
         freqs.items(),
         key=lambda x: (
