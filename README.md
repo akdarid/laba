@@ -305,5 +305,8 @@ def test_csv_to_json_wrong_extension(tmp_path):
         csv_to_json(str(src), str(dst))
 ```
 
-![img.png](img.png)
-тесты
+![img.png](images/img.png)
+тесты:
+
+
+![img_1.png](images/img_1.png)
