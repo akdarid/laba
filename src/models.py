@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime, date
 
 
+
 @dataclass
 class Student:
     fio: str
@@ -35,3 +36,4 @@ class Student:
     @classmethod
     def from_dict(cls, d: dict):
         return Student(d["fio"], d["birthdate"], d["group"], d["gpa"])
+

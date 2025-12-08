@@ -85,3 +85,5 @@ def csv_to_xlsx(csv_path: str, xlsx_path: str) -> None: #функция конв
     wb.save(xlsx_path) #сохраняет Excel книгу по указанному пути
 csv_to_xlsx(r"/Users/matvejtetevin/laba/src/date/samples/cities.csv", r"/Users/matvejtetevin/laba/src/date/out/people.xlsx")
 ```  
+### тесты
+![img.png](img.png)

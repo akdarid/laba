@@ -1,5 +1,5 @@
 import json
-from models import Student
+from src.models import Student
 import argparse
 
 def students_to_json(students, path):
@@ -11,3 +11,5 @@ def students_from_json(path):
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
     return [Student.from_dict(obj) for obj in data]
+
+print(students_from_json(r"C:\Users\matve\PycharmProjects\laba8\data\students_input.json"))
