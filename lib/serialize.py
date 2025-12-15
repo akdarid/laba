@@ -1,5 +1,5 @@
 import json
-from src.models import Student
+from models import Student
 import argparse
 
 def students_to_json(students, path):

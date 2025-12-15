@@ -1,89 +1,121 @@
-# Лабораторная работа №8
-## models.py
+
+# Лабораторная работа №9
+## ```group.pyw```
+### Конструктор
+В конструкторе делаем все проверки.
+### ```list()```
+В методе list() с помощью next() пропускаем заголовок и из остальных строк делаем массив.
+### ```add()```
+В методе add() сначала создаем словарь из студента, затем просто записываем его в файл.
+### ```find()```
+В методе find() сначала открываем файл на чтение затем по подстроке находим нужного и выводим его данные.
+### ```remove()```
+В методе remove() считываем все данные затем делаем делаем массив с обновленными данными, потом открываем файл на перезапись и по новой записываем уже новые данные.
+### ```update()```
+В методе update() первым делаем создаем студента через метод from_dict(), таким образом мы провалидируем данные которые нам передали, после этого сразу конвертируем экземпляр в словарь и удаляем из него fio, после чего открываем файл на чтение и ищем нужного студента по фио, затем обновляем его данные и сохраняем для записи, после этого открываем файл на запись и перезаписываем обновленные данные
+
 ```python
-from dataclasses import dataclass
-from datetime import datetime, date
-
-@dataclass
-class Student:
-    fio: str
-    birthdate: str
-    group: str
-    gpa: float
-
-    def __str__(self):
-        return f'Obj Student. fio: {self.fio}, birthdate: {self.birthdate}, group: {self.group}, gpa: {self.gpa}'
-    
-    def __post_init__(self):
-        if isinstance(self.gpa, str) or self.gpa < 0 or self.gpa > 5:
-            raise ValueError('Invalid GPA-score')
-        try:
-            self._date_of_birth = datetime.strptime(self.birthdate, '%Y-%m-%d')
-        except:
-            raise ValueError('Invalid date format')
-    
-    @property
-    def age(self) -> any:
-        return date.today().year - self._date_of_birth.year
-    
-    def to_dict(self) -> dict:
-        return {
-            "fio": self.fio,
-            "birthdate": self.birthdate,
-            "group": self.group,
-            "gpa": self.gpa
-        }
-    
-    @classmethod
-    def from_dict(cls, d: dict):
-        return Student(d["fio"], d["birthdate"], d["group"], d["gpa"])
-
-```
-## Задание B - CSV → XLSX
-```python
-import os
 import csv
-import sys
 from pathlib import Path
+from lab_08.models import student 
 
-from openpyxl import Workbook #из библиотеки openpyx1 импортирует только класс Workbook для создаия Excel файлов
+class Group():
+    def __init__(self, storage_path: str):
+        self.path = Path(storage_path)
+        if not self.path.exists():
+            self.path.write_text("", encoding='utf-8')
+        if not self.path.read_text(encoding='utf-8').split('\n')[0] == 'fio,birthdate,group,gpa':
+            raise ValueError('Не корректный заголовок')
+        with open(self.path, 'r', encoding='utf-8') as f:
+            rd = list(csv.DictReader(f))
+            [student.from_dict(st) for st in rd]
 
-def check_file_type(file_path: str, valid_types: tuple) -> bool: #функция для проверки типа файла по расширению
+    
+    def _read_all(self):
+        data_text = self.path.read_text(encoding='utf-8')
+        return data_text
+    
+    def list(self):
+        with open(self.path, 'r', encoding='utf-8') as f:
+            rd = csv.reader(f)
+            next(rd)
+            students = list(rd)
+        return students
+        
+    def add(self, student: student):
+        with open(self.path, 'a', newline='\n', encoding='utf-8') as f:
+            data_append = student.to_dict()
+            wr = csv.DictWriter(f, fieldnames=list(data_append.keys()))
+            wr.writerow(data_append)
 
-    return Path(file_path).suffix.lower() in valid_types
+    def find(self, substr: str):
+        with open(self.path, 'r', encoding='utf-8') as f:
+            rd = list(csv.DictReader(f))
+        return [student.from_dict(r) for r in rd if substr in r['fio']]
+    
+    def remove(self, fio: str):
+        with open(self.path, 'r', encoding='utf-8') as f:
+            rd = csv.DictReader(f)
+            data_new = [r for r in rd if fio not in r['fio']]
+        with open(self.path, 'w', newline='', encoding='utf-8') as f:
+            wr = csv.DictWriter(f, fieldnames=list(data_new[0].keys()))
+            wr.writeheader()
+            wr.writerows(data_new)
 
+    def update(self, fio: str, **fields):
+        data = student.from_dict({'fio': fio, **fields}).to_dict()
+        data.pop('fio')
+        with open(self.path, 'r', encoding='utf-8') as f:
+            rd = list(csv.DictReader(f))
+            for r in rd:
+                if fio in r['fio']:
+                    r.update(data)
+                    break 
+        with open(self.path, 'w', newline='', encoding='utf-8') as f:
+            wr = csv.DictWriter(f, fieldnames=list(rd[0].keys()))
+            wr.writeheader()
+            wr.writerows(rd)
+```
 
-def csv_to_xlsx(csv_path: str, xlsx_path: str) -> None: #функция конвертанции CSV в XLSX
-    if not os.path.exists(csv_path): #если не существует файл по указанному пути, то
-        raise FileNotFoundError #выводит сообщение об ошибке
-    if not check_file_type(csv_path, ('.csv',)): #проверка расширения входящего файла (должен быть .csv)
-        raise ValueError(f"Входной файл '{csv_path}' не является CSV.")
+Тестовый csv:
 
-    if not check_file_type(xlsx_path, ('.xlsx',)):  #проверка расширения выходящего файла (должен быть .xlsx)
-        raise ValueError(f"Выходной файл '{xlsx_path}' не является XLSX.")
+```csv
+fio,birthdate,group,gpa
+Иванов Иван Иванович,2007-05-15,БИВТ-25-1,4.8
+Петрова Мария Сергеевна,2007-03-22,БИВТ-25-2,5.0
+Сидоров Алексей Петрович,2007-11-30,БИВТ-25-3,3.9
+Козлова Анна Дмитриевна,2007-08-14,БИВТ-25-1,4.5
+Васильев Дмитрий Андреевич,2007-01-10,БИВТ-25-2,4.2
+```
 
-    if os.path.getsize(csv_path) == 0: #получает размер в байтах и проверяет не равен ли он 0 (пустой файл)
-        raise ValueError
+### Результат
+Для ```list()```
 
-    wb = Workbook() #создаем новую Excel книгу
-    ws = wb.active #берем первый лист
-    ws.title = "Sheet1" #переменовываем лист в Sheet1
+<img width="1448" height="67" alt="reslt_list" src="https://github.com/user-attachments/assets/90f2e663-396c-4f9b-8f85-2e8e42fee8ed" />
 
-    with open(csv_path, "r", encoding="utf-8") as csv_file: #безопасно открывае файл для прочтения(автомвтически закрывает после использовния #csv_path - путь к файлу
-        reader = csv.reader(csv_file) #создает объект для чтения CSV файла
-        for row in reader: #перебирает каждую строку в CSV файле, row - переменная, содержащая данные одной строки(как список)
-            ws.append(row) #добавляет строку данных в Excel лист
+Для ```add()```
+```python
+print(gr.add(student('Данилов Иван Иванович', '2007-08-17', 'БИВТ-25-2', 3.8)))
+```
 
-#Настройка ширины колонок
-    for column_cells in ws.columns: #перебирает содержания ячейки одной колонки и возвращает все колонки листа
-        max_length = 0 #создает переменную для хранения максимальной длины теста в колонке
-        column_letter = column_cells[0].column_letter #присваивает букву колонки
-        for cell in column_cells: #перебирает все ячейки в текущей колонке
-            if cell.value: #проверяет есть ли значение в ячейки(не пустая)
-                max_length = max(max_length, len(str(cell.value))) #обновляет длину строкиб сравнивая прошлое значение с настоящим
-        ws.column_dimensions[column_letter].width = max(max_length + 2, 8) #обращается к настройкам ширины конкретной колонки, устанавливает ширину колонки, максимальная длина + 2 символа для отступа, 8- выбирает большее значение между расчитанной шириной и минимальной шириной 8
-    wb.save(xlsx_path) #сохраняет Excel книгу по указанному пути
-csv_to_xlsx(r"/Users/matvejtetevin/laba/src/date/samples/cities.csv", r"/Users/matvejtetevin/laba/src/date/out/people.xlsx")
-```  
-### тесты
-![img.png](img.png)
+<img width="582" height="210" alt="reslt_add" src="https://github.com/user-attachments/assets/bcb07c0a-5924-425a-a85f-66250880447c" />
+
+Для ```find()```
+
+```python
+print(gr.find('Иванов Иван Иванович'))
+```
+
+<img width="828" height="52" alt="reslt_find" src="https://github.com/user-attachments/assets/5473e485-47ca-4689-81b8-8bddd7a50435" />
+
+Для ```remove()```
+
+<img width="532" height="368" alt="reslt_remove" src="https://github.com/user-attachments/assets/26e39bad-2c3f-42ed-bf3b-266a5a8aef56" />
+
+Для ```update()```
+
+```python
+print(gr.update('Васильев Дмитрий Андреевич', **{'birthdate': '2007.06/25', 'group': 'БИВТ-25-4', 'gpa': 4.2}))
+```
+
+<img width="603" height="190" alt="reslt_updata_csv" src="https://github.com/user-attachments/assets/6ba0f374-5058-48c8-8846-59cc0f7e8345" />
