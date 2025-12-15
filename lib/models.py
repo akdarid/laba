@@ -3,7 +3,7 @@ from datetime import datetime
 from tokenize import group
 
 @dataclass
-class Student:
+class student:
     fio: str
     birthdate: str
     group: str
@@ -30,7 +30,7 @@ class Student:
 
     @classmethod
     def from_dict(cls, d: dict):
-        return Student(fio=d["fio"], birthdate=d["birthdate"], group=d["group"], gpa=float(d["gpa"]))
+        return student(fio=d["fio"], birthdate=d["birthdate"], group=d["group"], gpa=float(d["gpa"]))
 
     def __str__(self):
         return f"ФИО: {self.fio} дата рождения: {self.birthdate} группа: {self.group} средний балл: {self.gpa}"

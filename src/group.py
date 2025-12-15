@@ -1,62 +1,89 @@
 import csv
-import os
 from pathlib import Path
-from lib.models import Student
-class Group:
+from lib.models import student
+import sys
+from typing import List
+
+
+class Group():
     def __init__(self, storage_path: str):
         self.path = Path(storage_path)
         if not self.path.exists():
-            self.path.write_text("", encoding="utf-8")
+            self.path.write_text("", encoding='utf-8')
+        if not self.path.read_text(encoding='utf-8').split('\n')[
+                   0] == 'fio,birthdate,group,gpa':  # Проверка корректности заголовка CSV файла
+            raise ValueError('Не корректный заголовок')
+        with open(self.path, 'r', encoding='utf-8') as f:
+            rd = list(csv.DictReader(f))
+            [student.from_dict(st) for st in rd]  # Создание объектов student из каждого словаря
 
-    def _read_all(self):
-        with self.path.open("r", encoding= "utf-8") as f:
-            r = csv.DictReader(f)
-            if r.fieldnames != ["fio","birthdate","group","gpa"]:
-                raise ValueError("Некорректный формат заголовка")
-            return [row for row in r]
+    def _ensure_storage_exists(self):  # Метод для обеспечения существования файла хранилища
+        if not self.path.exists():
+            self.path.parent.mkdir(parents=True, exist_ok=True)
+            with open(self.path, 'w', encoding='utf-8') as f:
+                f.write('fio,birthdate,group,gpa\n')
 
-    def list(self) -> list[Student]:
-        return [Student.from_dict(s) for s in self._read_all()]
+    def _read_all(self) -> List[dict]:  # Метод для чтения всех данных из файла
+        self._ensure_storage_exists()
+        with open(self.path, 'r', encoding='utf-8') as f:
+            return list(csv.DictReader(f))
 
-    def find(self, substr: str):
-        return [r for r in self.list() if substr in r.fio]
+    def list(self):  # Метод для получения списка всех студентов в виде списка строк
+        with open(self.path, 'r', encoding='utf-8') as f:
+            rd = csv.reader(f)
+            next(rd)
+            students = list(rd)
+        return students
 
-    def add(self, student:Student):
-        emptyFile = os.path.getsize(self.path) == 0
-        with self.path.open("a", encoding="utf-8") as f:
-            w = csv.DictWriter(f, fieldnames=["fio","birthdate","group","gpa"])
-            if emptyFile:
-                w.writeheader()
-            w.writerow(student.to_dict())
-    def remove(self, fio: str):
-        studs = self._read_all()
-        if any(f for f in studs if f["fio"] == fio):
-            with self.path.open('w', encoding="utf-8") as f:
-                w = csv.DictWriter(f, fieldnames=["fio","birthdate","group","gpa"])
-                w.writeheader()
-                w.writerows([f for f in studs if f["fio"] != fio])
+    def _write_all(self, students: List[dict]):  # Метод для записи всех данных в файл
+        with open(self.path, 'w', encoding='utf-8', newline='') as f:
+            writer = csv.DictWriter(f, fieldnames=['fio', 'birthdate', 'group', 'gpa'])
+            writer.writeheader()
+            writer.writerows(students)
 
-    def update(self, fio: str, **fields):
-        if set(fields.keys()) <= { "fio","birthdate","group","gpa" }:
-            studs = self._read_all()
-            if any(v := tuple(((i,f) for i,f in enumerate(studs) if f["fio"] == fio))):
-                for i, k in v:
-                    studs[i].update(k)
-            with self.path.open("w", encoding="utf-8") as f:
-                w = csv.DictWriter(f, fieldnames=["fio","birthdate","group","gpa"])
-                w.writeheader()
-                w.writerows(studs)
+    def add(self, student: student):  # Метод для добавления нового студента
+        rows = self._read_all()
+        if any(row['fio'] == student.fio for row in rows):
+            raise ValueError(f"Студент {student.fio} уже существует")
+        rows.append({
+            'fio': student.fio,
+            'birthdate': student.birthdate,
+            'group': student.group,
+            'gpa': str(student.gpa)
+        })
+        self._write_all(rows)
 
-    def stats(self):
-        res = {}
-        studs = self.list()
-        sgpa = [s.gpa for s in studs]
-        sgroup = [s.group for s in studs]
+    def find(self, substr: str):  # Метод для поиска студентов по подстроке в ФИО
+        with open(self.path, 'r', encoding='utf-8') as f:
+            rd = list(csv.DictReader(f))
+        return [student.from_dict(r) for r in rd if substr in r['fio']]
 
-        res["count"] = len(studs)
-        res["min_gpa"], res["max_gpa"] = min(sgpa), max(sgpa)
-        res["avg_gpa"] = round(sum(sgpa) / res["count"], 1)
-        res["groups"] = { g : sgroup.count(g) for g in set(sgroup) }
-        res["top_5_students"] = list(sorted(studs, key=lambda x: (-x.gpa, x.fio.split()[0])))[:5]
+    def remove(self, fio: str):  # Метод для удаления студента по ФИО
+        with open(self.path, 'r', encoding='utf-8') as f:
+            rd = csv.DictReader(f)
+            data_new = [r for r in rd if fio not in r['fio']]
+        with open(self.path, 'w', newline='', encoding='utf-8') as f:
+            wr = csv.DictWriter(f, fieldnames=list(data_new[0].keys()))
+            wr.writeheader()
+            wr.writerows(data_new)
 
-        return res
+    def update(self, fio: str, **fields):  # Метод для обновления данных студента
+        data = student.from_dict({'fio': fio, **fields}).to_dict()
+        data.pop('fio')
+        with open(self.path, 'r', encoding='utf-8') as f:
+            rd = list(csv.DictReader(f))
+            for r in rd:
+                if fio in r['fio']:
+                    r.update(data)
+                    break
+        with open(self.path, 'w', newline='', encoding='utf-8') as f:
+            wr = csv.DictWriter(f, fieldnames=list(rd[0].keys()))
+            wr.writeheader()
+            wr.writerows(rd)
+
+
+if __name__ == "__main__":
+
+    group = Group(r'C:\Users\matve\PycharmProjects\laba8\data\students.csv')
+
+
