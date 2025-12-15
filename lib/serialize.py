@@ -1,15 +1,17 @@
+from os import write
+from pathlib import Path
+from lib.models import Student
 import json
-from models import Student
-import argparse
+from src.lib.io_helper import check_path_in, read_text
 
-def students_to_json(students, path):
+def students_to_json(students:list[Student], path: Path):
     data = [s.to_dict() for s in students]
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    res = json.dumps(data, ensure_ascii=False, indent=2)
+    path.write_text(res)
 
-def students_from_json(path):
-    with open(path, "r", encoding="utf-8") as f:
-        data = json.load(f)
-    return [Student.from_dict(obj) for obj in data]
-
-print(students_from_json(r"C:\Users\matve\PycharmProjects\laba8\data\students_input.json"))
+def students_from_json(path: Path) -> list[Student]:
+    if not path.exists():
+        raise FileNotFoundError("Файл не существует")
+    with open(path) as f:
+        d = json.load(f)
+    return [Student.from_dict(s) for s in d]

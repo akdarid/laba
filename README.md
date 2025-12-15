@@ -1,121 +1,79 @@
-
 # Лабораторная работа №9
-## ```group.pyw```
-### Конструктор
-В конструкторе делаем все проверки.
-### ```list()```
-В методе list() с помощью next() пропускаем заголовок и из остальных строк делаем массив.
-### ```add()```
-В методе add() сначала создаем словарь из студента, затем просто записываем его в файл.
-### ```find()```
-В методе find() сначала открываем файл на чтение затем по подстроке находим нужного и выводим его данные.
-### ```remove()```
-В методе remove() считываем все данные затем делаем делаем массив с обновленными данными, потом открываем файл на перезапись и по новой записываем уже новые данные.
-### ```update()```
-В методе update() первым делаем создаем студента через метод from_dict(), таким образом мы провалидируем данные которые нам передали, после этого сразу конвертируем экземпляр в словарь и удаляем из него fio, после чего открываем файл на чтение и ищем нужного студента по фио, затем обновляем его данные и сохраняем для записи, после этого открываем файл на запись и перезаписываем обновленные данные
+## class Group
+## init() - конструктор с аргументом пути к набору студентов в формате csv + проверки
+## _read_all() - protected-метод для чтения файла и получения словаря студентов с целью упрощения и вынесения повторяющегося кода в отдельный метод внутреннего использования
+## list() - получение набора студентов из файла
+## find() - метод, возвращающий набор студентов, фамилия которых удволетворяет определённой подстроке
+## add() - метод, добавляющий в конец набора студентов ещё одного студента, для этого файл открывается с флагом append
+## remove() - метод, удаляющий элементы, фио которых соответсвует переданному
+## stats() - метод, возвращающий словарь статистических данных группы
 
-```python
+``` python
+
 import csv
+import os
 from pathlib import Path
-from lab_08.models import student 
-
-class Group():
+from lib.models import Student
+class Group:
     def __init__(self, storage_path: str):
         self.path = Path(storage_path)
         if not self.path.exists():
-            self.path.write_text("", encoding='utf-8')
-        if not self.path.read_text(encoding='utf-8').split('\n')[0] == 'fio,birthdate,group,gpa':
-            raise ValueError('Не корректный заголовок')
-        with open(self.path, 'r', encoding='utf-8') as f:
-            rd = list(csv.DictReader(f))
-            [student.from_dict(st) for st in rd]
+            self.path.write_text("", encoding="utf-8")
 
-    
     def _read_all(self):
-        data_text = self.path.read_text(encoding='utf-8')
-        return data_text
-    
-    def list(self):
-        with open(self.path, 'r', encoding='utf-8') as f:
-            rd = csv.reader(f)
-            next(rd)
-            students = list(rd)
-        return students
-        
-    def add(self, student: student):
-        with open(self.path, 'a', newline='\n', encoding='utf-8') as f:
-            data_append = student.to_dict()
-            wr = csv.DictWriter(f, fieldnames=list(data_append.keys()))
-            wr.writerow(data_append)
+        with self.path.open("r", encoding= "utf-8") as f:
+            r = csv.DictReader(f)
+            if r.fieldnames != ["fio","birthdate","group","gpa"]:
+                raise ValueError("Некорректный формат заголовка")
+            return [row for row in r]
+
+    def list(self) -> list[Student]:
+        return [Student.from_dict(s) for s in self._read_all()]
 
     def find(self, substr: str):
-        with open(self.path, 'r', encoding='utf-8') as f:
-            rd = list(csv.DictReader(f))
-        return [student.from_dict(r) for r in rd if substr in r['fio']]
-    
+        return [r for r in self.list() if substr in r.fio]
+
+    def add(self, student:Student):
+        emptyFile = os.path.getsize(self.path) == 0
+        with self.path.open("a", encoding="utf-8") as f:
+            w = csv.DictWriter(f, fieldnames=["fio","birthdate","group","gpa"])
+            if emptyFile:
+                w.writeheader()
+            w.writerow(student.to_dict())
     def remove(self, fio: str):
-        with open(self.path, 'r', encoding='utf-8') as f:
-            rd = csv.DictReader(f)
-            data_new = [r for r in rd if fio not in r['fio']]
-        with open(self.path, 'w', newline='', encoding='utf-8') as f:
-            wr = csv.DictWriter(f, fieldnames=list(data_new[0].keys()))
-            wr.writeheader()
-            wr.writerows(data_new)
+        studs = self._read_all()
+        if any(f for f in studs if f["fio"] == fio):
+            with self.path.open('w', encoding="utf-8") as f:
+                w = csv.DictWriter(f, fieldnames=["fio","birthdate","group","gpa"])
+                w.writeheader()
+                w.writerows([f for f in studs if f["fio"] != fio])
 
     def update(self, fio: str, **fields):
-        data = student.from_dict({'fio': fio, **fields}).to_dict()
-        data.pop('fio')
-        with open(self.path, 'r', encoding='utf-8') as f:
-            rd = list(csv.DictReader(f))
-            for r in rd:
-                if fio in r['fio']:
-                    r.update(data)
-                    break 
-        with open(self.path, 'w', newline='', encoding='utf-8') as f:
-            wr = csv.DictWriter(f, fieldnames=list(rd[0].keys()))
-            wr.writeheader()
-            wr.writerows(rd)
+        if set(fields.keys()) <= { "fio","birthdate","group","gpa" }:
+            studs = self._read_all()
+            if any(v := tuple(((i,f) for i,f in enumerate(studs) if f["fio"] == fio))):
+                for i, k in v:
+                    studs[i].update(k)
+            with self.path.open("w", encoding="utf-8") as f:
+                w = csv.DictWriter(f, fieldnames=["fio","birthdate","group","gpa"])
+                w.writeheader()
+                w.writerows(studs)
+
+    def stats(self):
+        res = {}
+        studs = self.list()
+        sgpa = [s.gpa for s in studs]
+        sgroup = [s.group for s in studs]
+
+        res["count"] = len(studs)
+        res["min_gpa"], res["max_gpa"] = min(sgpa), max(sgpa)
+        res["avg_gpa"] = round(sum(sgpa) / res["count"], 1)
+        res["groups"] = { g : sgroup.count(g) for g in set(sgroup) }
+        res["top_5_students"] = list(sorted(studs, key=lambda x: (-x.gpa, x.fio.split()[0])))[:5]
+
+        return res
+
+
+
+
 ```
-
-Тестовый csv:
-
-```csv
-fio,birthdate,group,gpa
-Иванов Иван Иванович,2007-05-15,БИВТ-25-1,4.8
-Петрова Мария Сергеевна,2007-03-22,БИВТ-25-2,5.0
-Сидоров Алексей Петрович,2007-11-30,БИВТ-25-3,3.9
-Козлова Анна Дмитриевна,2007-08-14,БИВТ-25-1,4.5
-Васильев Дмитрий Андреевич,2007-01-10,БИВТ-25-2,4.2
-```
-
-### Результат
-Для ```list()```
-
-<img width="1448" height="67" alt="reslt_list" src="https://github.com/user-attachments/assets/90f2e663-396c-4f9b-8f85-2e8e42fee8ed" />
-
-Для ```add()```
-```python
-print(gr.add(student('Данилов Иван Иванович', '2007-08-17', 'БИВТ-25-2', 3.8)))
-```
-
-<img width="582" height="210" alt="reslt_add" src="https://github.com/user-attachments/assets/bcb07c0a-5924-425a-a85f-66250880447c" />
-
-Для ```find()```
-
-```python
-print(gr.find('Иванов Иван Иванович'))
-```
-
-<img width="828" height="52" alt="reslt_find" src="https://github.com/user-attachments/assets/5473e485-47ca-4689-81b8-8bddd7a50435" />
-
-Для ```remove()```
-
-<img width="532" height="368" alt="reslt_remove" src="https://github.com/user-attachments/assets/26e39bad-2c3f-42ed-bf3b-266a5a8aef56" />
-
-Для ```update()```
-
-```python
-print(gr.update('Васильев Дмитрий Андреевич', **{'birthdate': '2007.06/25', 'group': 'БИВТ-25-4', 'gpa': 4.2}))
-```
-
-<img width="603" height="190" alt="reslt_updata_csv" src="https://github.com/user-attachments/assets/6ba0f374-5058-48c8-8846-59cc0f7e8345" />
