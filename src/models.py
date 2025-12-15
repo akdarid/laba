@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from datetime import datetime, date
-
+import json
+from typing import Dict, Any
 
 
 @dataclass
@@ -10,22 +11,31 @@ class Student:
     group: str
     gpa: float
 
-    def __str__(self):
-        return f'Obj Student. fio: {self.fio}, birthdate: {self.birthdate}, group: {self.group}, gpa: {self.gpa}'
-
     def __post_init__(self):
-        if isinstance(self.gpa, str) or self.gpa < 0 or self.gpa > 5:
-            raise ValueError('Invalid GPA-score')
+        """Валидация данных после инициализации"""
         try:
-            self._date_of_birth = datetime.strptime(self.birthdate, '%Y-%m-%d')
-        except:
-            raise ValueError('Invalid date format')
+            datetime.strptime(self.birthdate, "%Y-%m-%d")
+        except ValueError:
+            raise ValueError(f"Invalid date format: {self.birthdate}. Use YYYY-MM-DD")
 
-    @property
-    def age(self) -> any:
-        return date.today().year - self._date_of_birth.year
+        # Валидация среднего балла
+        if not (0 <= self.gpa <= 5):
+            raise ValueError(f"GPA must be between 0 and 5, got {self.gpa}")
 
-    def to_dict(self) -> dict:
+    def age(self) -> int:
+        """Вычисление возраста студента"""
+        birth_date = datetime.strptime(self.birthdate, "%Y-%m-%d").date()
+        today = date.today()
+        age = today.year - birth_date.year
+
+        # Корректировка, если день рождения еще не наступил в этом году
+        if today.month < birth_date.month or (today.month == birth_date.month and today.day < birth_date.day):
+            age -= 1
+
+        return age
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Сериализация объекта в словарь"""
         return {
             "fio": self.fio,
             "birthdate": self.birthdate,
@@ -34,6 +44,29 @@ class Student:
         }
 
     @classmethod
-    def from_dict(cls, d: dict):
-        return Student(d["fio"], d["birthdate"], d["group"], d["gpa"])
+    def from_dict(cls, data: Dict[str, Any]) -> 'Student':
+        """Десериализация объекта из словаря"""
+        return cls(
+            fio=data["fio"],
+            birthdate=data["birthdate"],
+            group=data["group"],
+            gpa=data["gpa"]
+        )
 
+    def __str__(self) -> str:
+        """Строковое представление объекта"""
+        return f"Студент: {self.fio}, Группа: {self.group}, GPA: {self.gpa}, Возраст: {self.age()} лет"
+
+
+if __name__ == "__main__":
+    try:
+        student = Student(
+            fio="Иванов Иван Иванович",
+            birthdate="2000-05-15",
+            group="SE-01",
+            gpa=4.5
+        )
+        print(student)
+        print(f"Словарь: {student.to_dict()}")
+    except ValueError as e:
+        print(f"Ошибка: {e}")

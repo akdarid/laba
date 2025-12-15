@@ -3,6 +3,9 @@
 ```python
 from dataclasses import dataclass
 from datetime import datetime, date
+import json
+from typing import Dict, Any
+
 
 @dataclass
 class Student:
@@ -11,79 +14,121 @@ class Student:
     group: str
     gpa: float
 
-    def __str__(self):
-        return f'Obj Student. fio: {self.fio}, birthdate: {self.birthdate}, group: {self.group}, gpa: {self.gpa}'
-    
     def __post_init__(self):
-        if isinstance(self.gpa, str) or self.gpa < 0 or self.gpa > 5:
-            raise ValueError('Invalid GPA-score')
+        """Валидация данных после инициализации"""
         try:
-            self._date_of_birth = datetime.strptime(self.birthdate, '%Y-%m-%d')
-        except:
-            raise ValueError('Invalid date format')
-    
-    @property
-    def age(self) -> any:
-        return date.today().year - self._date_of_birth.year
-    
-    def to_dict(self) -> dict:
+            datetime.strptime(self.birthdate, "%Y-%m-%d")
+        except ValueError:
+            raise ValueError(f"Invalid date format: {self.birthdate}. Use YYYY-MM-DD")
+
+        # Валидация среднего балла
+        if not (0 <= self.gpa <= 5):
+            raise ValueError(f"GPA must be between 0 and 5, got {self.gpa}")
+
+    def age(self) -> int:
+        """Вычисление возраста студента"""
+        birth_date = datetime.strptime(self.birthdate, "%Y-%m-%d").date()
+        today = date.today()
+        age = today.year - birth_date.year
+
+        # Корректировка, если день рождения еще не наступил в этом году
+        if today.month < birth_date.month or (today.month == birth_date.month and today.day < birth_date.day):
+            age -= 1
+
+        return age
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Сериализация объекта в словарь"""
         return {
             "fio": self.fio,
             "birthdate": self.birthdate,
             "group": self.group,
             "gpa": self.gpa
         }
-    
+
     @classmethod
-    def from_dict(cls, d: dict):
-        return Student(d["fio"], d["birthdate"], d["group"], d["gpa"])
+    def from_dict(cls, data: Dict[str, Any]) -> 'Student':
+        """Десериализация объекта из словаря"""
+        return cls(
+            fio=data["fio"],
+            birthdate=data["birthdate"],
+            group=data["group"],
+            gpa=data["gpa"]
+        )
+
+    def __str__(self) -> str:
+        """Строковое представление объекта"""
+        return f"Студент: {self.fio}, Группа: {self.group}, GPA: {self.gpa}, Возраст: {self.age()} лет"
+
+
+if __name__ == "__main__":
+    try:
+        student = Student(
+            fio="Иванов Иван Иванович",
+            birthdate="2000-05-15",
+            group="SE-01",
+            gpa=4.5
+        )
+        print(student)
+        print(f"Словарь: {student.to_dict()}")
+    except ValueError as e:
+        print(f"Ошибка: {e}")
+
 
 ```
 ## Задание B - CSV → XLSX
 ```python
-import os
-import csv
-import sys
-from pathlib import Path
-
-from openpyxl import Workbook #из библиотеки openpyx1 импортирует только класс Workbook для создаия Excel файлов
-
-def check_file_type(file_path: str, valid_types: tuple) -> bool: #функция для проверки типа файла по расширению
-
-    return Path(file_path).suffix.lower() in valid_types
+import json
+from src.models import Student
+import argparse
 
 
-def csv_to_xlsx(csv_path: str, xlsx_path: str) -> None: #функция конвертанции CSV в XLSX
-    if not os.path.exists(csv_path): #если не существует файл по указанному пути, то
-        raise FileNotFoundError #выводит сообщение об ошибке
-    if not check_file_type(csv_path, ('.csv',)): #проверка расширения входящего файла (должен быть .csv)
-        raise ValueError(f"Входной файл '{csv_path}' не является CSV.")
+def students_to_json(students: list[Student], path: str) -> None:
+    data = [student.to_dict() for student in students]  # Генератор списка: преобразуем каждый объект Student в словарь
 
-    if not check_file_type(xlsx_path, ('.xlsx',)):  #проверка расширения выходящего файла (должен быть .xlsx)
-        raise ValueError(f"Выходной файл '{xlsx_path}' не является XLSX.")
+    with open(path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
-    if os.path.getsize(csv_path) == 0: #получает размер в байтах и проверяет не равен ли он 0 (пустой файл)
-        raise ValueError
 
-    wb = Workbook() #создаем новую Excel книгу
-    ws = wb.active #берем первый лист
-    ws.title = "Sheet1" #переменовываем лист в Sheet1
+def students_from_json(path: str) -> list[Student]:  # Десериализация списка студентов из JSON файла
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            data = json.load(f)  # Загрузка и парсинг JSON данных из файла в Python
 
-    with open(csv_path, "r", encoding="utf-8") as csv_file: #безопасно открывае файл для прочтения(автомвтически закрывает после использовния #csv_path - путь к файлу
-        reader = csv.reader(csv_file) #создает объект для чтения CSV файла
-        for row in reader: #перебирает каждую строку в CSV файле, row - переменная, содержащая данные одной строки(как список)
-            ws.append(row) #добавляет строку данных в Excel лист
+        students = []
+        for item in data:
+            try:
+                student = Student.from_dict(item)  # Создание объекта Student из словаря
+                students.append(student)
+            except (ValueError, KeyError) as e:
+                print(f"Ошибка при создании студента из данных {item}: {e}")
+                continue
 
-#Настройка ширины колонок
-    for column_cells in ws.columns: #перебирает содержания ячейки одной колонки и возвращает все колонки листа
-        max_length = 0 #создает переменную для хранения максимальной длины теста в колонке
-        column_letter = column_cells[0].column_letter #присваивает букву колонки
-        for cell in column_cells: #перебирает все ячейки в текущей колонке
-            if cell.value: #проверяет есть ли значение в ячейки(не пустая)
-                max_length = max(max_length, len(str(cell.value))) #обновляет длину строкиб сравнивая прошлое значение с настоящим
-        ws.column_dimensions[column_letter].width = max(max_length + 2, 8) #обращается к настройкам ширины конкретной колонки, устанавливает ширину колонки, максимальная длина + 2 символа для отступа, 8- выбирает большее значение между расчитанной шириной и минимальной шириной 8
-    wb.save(xlsx_path) #сохраняет Excel книгу по указанному пути
-csv_to_xlsx(r"/Users/matvejtetevin/laba/src/date/samples/cities.csv", r"/Users/matvejtetevin/laba/src/date/out/people.xlsx")
+        return students
+    except FileNotFoundError:
+        print(f"Файл {path} не найден")
+        return []
+    except json.JSONDecodeError:
+        print(f"Ошибка декодирования JSON из файла {path}")
+        return []
+
+
+if __name__ == "__main__":  # Проверка: запущен ли скрипт напрямую (
+    # Пример использования
+    students = [
+        Student("Иванов Иван", "2000-05-15", "SE-01", 4.5),
+        Student("Петрова Анна", "2001-08-22", "SE-02", 3.8),
+        Student("Сидоров Алексей", "1999-12-10", "SE-01", 4.2)
+    ]
+
+    # Сериализация
+    students_to_json(students, r"C:\Users\matve\PycharmProjects\laba8\data\students_output.json")
+
+    # Десериализация
+    loaded_students = students_from_json(r"C:\Users\matve\PycharmProjects\laba8\data\students_input.json")
+    for student in loaded_students:
+        print(student)
+
 ```  
 ### тесты
 ![img.png](IMGS/img.png)
