@@ -1,27 +1,332 @@
-# 1 задание: 
-![img.png](pics/img.png)
-# вывод:
-![img_1.png](pics/img_1.png)
+## Лабораторная работа 10
+### A. Реализовать Stack и Queue (src/lab10/structures.py)
+```python
+from collections import deque
+from typing import Any, Optional
 
-# 2 задание:
-![img_2.png](pics/img_2.png)
-# вывод:
-![img_3.png](pics/img_3.png)
 
-# 3 задание:
-![img_4.png](pics/img_4.png)
+class Stack:
+    """Стек (LIFO) на базе list.
 
-# вывод:
-![img_5.png](pics/img_5.png)
-# 4 задание:
-![img_6.png](pics/img_6.png)
-# вывод:
-![img_7.png](pics/img_7.png)
-# 5 задание:
-![img_8.png](pics/img_8.png)
-# вывод:
-![img_9.png](pics/img_9.png)
-# *6 задание:
-![img.png](pics/6zdn.png)
-# Вывод:
--
+    Операции:
+      - push(item)      O(1) amortized добавление в стек
+      - pop()           O(1) удаление из стека
+      - peek()          O(1) (возврат None, если пуст)
+      - is_empty()      O(1) проверка на пустоту
+      - __len__()       O(1)
+    """
+
+    __slots__ = ("_data",)
+
+    def __init__(self, iterable=None) -> None:
+        self._data: list[Any] = list(iterable) if iterable is not None else []
+
+    def push(self, item: Any) -> None: 
+        self._data.append(item)
+
+    def pop(self) -> Any:
+        if not self._data:
+            raise IndexError("pop from empty Stack")
+        return self._data.pop()
+
+  # Метод просмотра верхнего элемента без удаления
+    def peek(self) -> Optional[Any]:
+        return self._data[-1] if self._data else None
+
+    # Метод проверки стека на пустоту
+    def is_empty(self) -> bool:
+        return not self._data
+
+    def __len__(self) -> int:
+        return len(self._data)
+
+    def __repr__(self) -> str:
+        return f"Stack({self._data!r})"
+
+
+class Queue:
+    """Очередь (FIFO) на базе collections.deque.
+
+    Операции:
+      - enqueue(item)   O(1)  Добавление в очередь
+      - dequeue()       O(1) Удаление из очереди
+      - peek()          O(1) (возврат None, если пуст)  Просмотр первого элемента
+      - is_empty()      O(1)  Проверка на пустоту
+      - __len__()       O(1)
+    """
+
+    __slots__ = ("_data",)
+
+    def __init__(self, iterable=None) -> None:
+        self._data: deque[Any] = deque(iterable) if iterable is not None else deque()
+
+    def enqueue(self, item: Any) -> None:
+        self._data.append(item)
+
+    def dequeue(self) -> Any:
+        if not self._data:
+            raise IndexError("dequeue from empty Queue")
+        return self._data.popleft()
+
+    def peek(self) -> Optional[Any]:
+        return self._data[0] if self._data else None
+
+    def is_empty(self) -> bool:
+        return not self._data
+
+    def __len__(self) -> int:
+        return len(self._data)
+
+    def __repr__(self) -> str:
+        return f"Queue({list(self._data)!r})"
+
+print('Stack')
+
+stack = Stack([1,2,3,4])
+print(f'Снятие верхнего элемента стека : {stack.pop()}')
+print(f'Пустой ли стек? {stack.is_empty()}')
+print(f'Число сверху : {stack.peek()}')
+stack.push(1)
+print(f'Значение сверху после добавления числа в стек : {stack.peek()}')
+print(f'Длина стека : {len(stack)}')
+print(f'Стек : {stack._data}')
+
+print('Deque')
+
+q = Queue([1,2,3,4])
+
+print(f'Значение первого эллемента : {q.peek()}')
+q.dequeue()
+print(f'Значение первого эллемента после удаления числа : {q.peek()}')
+q.enqueue(52)
+print(f'Значение первого эллемента после добавления числа : {q.peek()}')
+print(f'Пустая ли очередь? {q.is_empty()}')
+print(f'Количество элементов в очереди : {len(q)}')
+```
+![img.png](images/img.png)
+
+### B. Реализовать SinglyLinkedList (src/lab10/linked_list.py)
+```python
+from typing import Any, Iterator, Optional
+
+# Класс Node (узел) - базовый элемент связного списка
+class Node:
+    __slots__ = ("value", "next")
+
+    def __init__(self, value: Any, next: Optional["Node"] = None) -> None:
+        self.value = value
+        self.next = next
+
+    # Метод для представления узла в виде строки
+    def __repr__(self) -> str:
+        return f"Node({self.value!r})"
+
+
+class SinglyLinkedList:
+    """Односвязный список.
+
+    Атрибуты:
+      - head, tail, _size
+
+    Методы:
+      - append(value)       O(1) Добавление в конец
+      - prepend(value)      O(1) Добавление в начало
+      - insert(idx, value)  O(min(idx, n)) — проход от головы
+      - remove(value)       O(n) — удаление первого вхождения (ValueError если не найдено)
+      - remove_at(idx)      O(n) — удаление по индексу (IndexError при некорректном индексе)
+      - __iter__, __len__, __repr__, __str__
+    """
+
+    __slots__ = ("head", "tail", "_size")
+
+    def __init__(self, iterable=None) -> None:
+        self.head: Optional[Node] =  # Первый узел списка
+        self.tail: Optional[Node] = None # Последний узел списка
+        self._size: int = 0
+        if iterable:
+            for v in iterable:
+                self.append(v)
+
+    def append(self, value: Any) -> None:
+        """Добавить в конец — O(1)."""
+        node = Node(value)
+        if not self.head:
+            self.head = node
+            self.tail = node,
+        else:
+            assert self.tail is not None
+            self.tail.next = node
+            self.tail = node
+        self._size += 1
+
+    def prepend(self, value: Any) -> None:
+        """Добавить в начало — O(1)."""
+        node = Node(value, next=self.head)
+        self.head = node
+        if self._size == 0:
+            self.tail = node
+        self._size += 1
+
+    def insert(self, idx: int, value: Any) -> None:
+        """Вставить по индексу. Допускаются idx==0 и idx==len."""
+        if idx < 0 or idx > self._size:
+            raise IndexError("insert index out of range")
+        if idx == 0: # Если вставляем в начало
+            self.prepend(value)
+            return
+        if idx == self._size: # Если вставляем в конец
+            self.append(value)
+            return
+
+        # Вставка в середину
+        prev = self.head
+        for _ in range(idx - 1):
+            assert prev is not None
+            prev = prev.next
+        assert prev is not None
+        node = Node(value, next=prev.next)
+        prev.next = node
+        self._size += 1
+
+    def remove(self, value: Any) -> None:
+        """Удалить первое вхождение value. Если не найдено — ValueError."""
+        prev: Optional[Node] = None
+        cur = self.head
+        idx = 0
+        while cur:
+            if cur.value == value: # Если нашли значение
+                if prev is None:# Если удаляем голову
+                    self.head = cur.next # Голова становится следующим узлом
+                else:
+                    prev.next = cur.next
+                if cur is self.tail: # Если удаляем хвост
+                    self.tail = prev # Хвостом становится предыдущий узел
+                self._size -= 1
+                return
+            prev, cur = cur, cur.next # Переходим к следующему узлу
+            idx += 1 # Увеличиваем индекс
+        raise ValueError("remove: value not found in SinglyLinkedList")
+
+    def remove_at(self, idx: int) -> None:
+        """Удалить элемент по индексу. Возбуждает IndexError при неверном индексе."""
+        if idx < 0 or idx >= self._size:
+            raise IndexError("remove_at index out of range")
+        prev: Optional[Node] = None
+        cur = self.head
+        for _ in range(idx):
+            prev, cur = cur, cur.next  # type: ignore
+        assert cur is not None
+        if prev is None:
+            self.head = cur.next
+        else:
+            prev.next = cur.next
+        if cur is self.tail:
+            self.tail = prev
+        self._size -= 1 # Уменьшаем счетчик элементов
+
+# Метод для итерации по списку
+    def __iter__(self) -> Iterator[Any]:
+        cur = self.head
+        while cur:
+            yield cur.value
+            cur = cur.next
+
+    def __len__(self) -> int:
+        return self._size
+# Метод для представления списка в виде строки
+    def __repr__(self) -> str:
+        return f"SinglyLinkedList([{', '.join(repr(x) for x in self)}])"
+
+    def __str__(self) -> str:
+        parts = []
+        cur = self.head
+        while cur:
+            parts.append(f"[{cur.value!s}]")
+            cur = cur.next
+        parts.append("None")
+        return " -> ".join(parts)
+
+sll = SinglyLinkedList()
+print(f'Длина нашего односвязанного списка : {len(sll)}')
+
+sll.append(1)
+sll.append(2)
+sll.prepend(0)
+print(f'Наша ныняшняя длина списка после добавления эллементов : {len(sll)}') 
+print(f'Односвязаный список : {list(sll)}')
+
+sll.insert(1, 0.5)
+print(f'Длина списка после добавления на 1 индекс числа 0.5 : {len(sll)}')
+print(f'Односвязаный список : {list(sll)}')
+sll.append(52)
+print(f'Односвязанный список после добавления числа в конец : {list(sll)}')
+
+print(sll) 
+```
+![img_1.png](images/img_1.png)
+## Теоретическая часть
+### Стек
+Стек (англ. Stack) — это структура данных, работающая по принципу LIFO (Last In, First Out), где последний добавленный элемент извлекается первым. 
+
+**Типичные операции:**
+- `push`: добавление элемента (O(1))
+- `pop`: удаление верхнего элемента (O(1))
+- `peek`: просмотр верхнего элемента без удаления (O(1))
+
+### Очередь
+Очередь (англ. Queue) — это структура данных, работающая по принципу FIFO (First In, First Out), где первый добавленный элемент извлекается первым.
+
+**Типичные операции:**
+- `enqueue`: добавление элемента в конец очереди (O(1))
+- `dequeue`: удаление первого элемента (O(1))
+- `peek`: просмотр первого элемента без удаления (O(1))
+
+### Связный список
+Связный список (англ. Linked List) — это структура данных, состоящая из узлов, где каждый узел содержит данные и ссылку на следующий узел.
+
+**Типичные операции:**
+- `append`: добавление элемента в конец списка (O(n))
+- `prepend`: добавление элемента в начало списка (O(1))
+- `insert`: вставка элемента по индексу (O(n))
+- `remove_at`: удаление элемента по индексу (O(n))
+
+## Реализованные классы
+
+### Класс `Stack`
+```python
+stack = Stack()
+stack.push(1)
+stack.push(2)
+print(stack.pop())  # 2
+print(stack.peek())  # 1
+```
+
+### Класс `Queue`
+```python
+queue = Queue()
+queue.enqueue("A")
+queue.enqueue("B")
+print(queue.dequeue())  # "A"
+print(queue.peek())  # "B"
+```
+
+### Класс `SinglyLinkedList`
+```python
+ll = SinglyLinkedList()
+ll.append(10)
+ll.prepend(5)
+ll.insert(1, 7)
+print(ll.plotter())  # [5] -> [7] -> [10] -> None
+ll.remove_at(1)
+print(ll.plotter())  # [5] -> [10] -> None
+```
+
+## Выводы по бенчмаркам
+#### BigO notation
+---
+- **Стек** и **очередь** имеют одинаковую сложность операций (O(1)) благодаря использованию списков и `deque`.
+- **Связный список** медленнее для операций вставки и удаления в середине или конце (O(n)), так как требуется проход по элементам.
+- Для задач, где важна скорость доступа к началу или концу, стек и очередь предпочтительнее.
+- Связный список полезен, если требуется частое добавление/удаление элементов в произвольных местах.
+
+---
